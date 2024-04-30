@@ -2,16 +2,17 @@ import os
 import json
 import pandas as pd
 import ecdsa
+import time
 from hashlib import sha256
 from ecdsa import VerifyingKey, SECP256k1
 from base64 import b64decode
 
-from serelization import Serelization, dsha, rev, sha, little_endian, transaction_id, remove_json, testing, checking_ptr
+from serelization import Serelization, dsha, rev, sha, little_endian, transaction_id, remove_json, testing, checking_ptr, wtxid_Serelization
 from conversion import encode
 
 
 def coinbase_txid_fn(coinbase_json_data):
-    Raw_transaction_data = Serelization(coinbase_json_data)
+    Raw_transaction_data = wtxid_Serelization(coinbase_json_data)
     txid = transaction_id(Raw_transaction_data)
 
     return txid
@@ -62,7 +63,7 @@ def block(merkle_root, bits, nonce, transaction_count, coinbase_txid, transactio
     merkle_root = merkle_root
 
     # Time - 4 bytes and Little-endian
-    time  = '6d3f2f66'
+    # little_endian_time  = '6d3f2f66'
 
     # Bits - sizeis 4 bytes and it is compact representation of the difficulty target.
     bits = '1f00ffff'
@@ -88,12 +89,13 @@ def block_header(version, previous_block_hash, merkle_root, nonce):
     previous_block_hash = rev(previous_block_hash)
     block_head_raw += previous_block_hash
 
-    merkle_root = rev(merkle_root)
+    merkle_root = merkle_root
     block_head_raw += merkle_root
 
     # Time - 4 bytes and Little-endian
-    time  = '6d3f2f66'
-    block_head_raw += time
+    current_unix_time = int(time.time())
+    time_little_endian  = little_endian(current_unix_time, 4)
+    block_head_raw += time_little_endian
 
     # Bits - sizeis 4 bytes and it is compact representation of the difficulty target.
     bits = '1f00ffff'
@@ -107,3 +109,12 @@ def block_header(version, previous_block_hash, merkle_root, nonce):
 
     return block_head_raw
 
+
+def wtxid_commitment(wtxid_list):
+    # merkle root for all of the wTXIDs
+    # Txid in in natural byte order in merkle root
+    witness_root_hash = rev(merkleroot(wtxid_list))
+
+    witness_reserved_value = '0000000000000000000000000000000000000000000000000000000000000000'
+    wTXID_commitment = dsha(witness_root_hash+ witness_reserved_value)
+    return wTXID_commitment

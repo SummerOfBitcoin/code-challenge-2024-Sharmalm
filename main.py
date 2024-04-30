@@ -7,15 +7,15 @@ from hashlib import sha256
 from ecdsa import VerifyingKey, SECP256k1
 from base64 import b64decode
 
-from serelization import Serelization, dsha, rev, sha, little_endian, transaction_id, remove_json, testing, checking_ptr, total_fees_df
+from serelization import Serelization, dsha, rev, sha, little_endian, transaction_id, remove_json, testing, checking_ptr, total_fees_df, wtxid_Serelization
 from conversion import encode
-from block import merkleroot, coinbase_txid_fn, block_header
+from block import merkleroot, coinbase_txid_fn, block_header, wtxid_commitment
 
 '''
 TODO :
 Validate the transactions if it is valid or not.
 '''
-start_time = time.time()
+
 folder_path = 'mempool'
 
 
@@ -29,6 +29,8 @@ valid_files_name = []  # this will contain all valid and serilized files
 # valid txids
 valid_txids_RBO = []
 valid_txids_NBO = []
+valid_wtxids_RBO = []
+valid_wtxids_NBO = []
 Total_Number_of_correct_serilization = 0
 Total_Number_of_Incorrect_serlization = 0
 total_fees = 0
@@ -53,8 +55,18 @@ for i in range(len(total_file_names)):
     if testing(txid, file_name_without_json) == True and checking_ptr(transaction_json_data) == True:
         Total_Number_of_correct_serilization += 1
         valid_files_name.append(file_name_without_json)
+        
         valid_txids_RBO.append(txid)
         valid_txids_NBO.append(rev(txid))
+
+        # Raw transaction data  for wtxid
+        Raw_transaction_data_wtxid = wtxid_Serelization(transaction_json_data)
+        # Wtxid in reverse byte order
+        wtxid = transaction_id(Raw_transaction_data_wtxid)
+
+        valid_wtxids_RBO.append(wtxid)
+        valid_wtxids_NBO.append(rev(wtxid))
+
         fees = total_fees_df(transaction_json_data)
         total_fees += fees
 
@@ -113,7 +125,7 @@ Final_nonce = nonce
 
 # Output.txt
 Block_header = block_header(version, previous_block_hash, merkle_root, Final_nonce)
-Coinbase_serilize_transaction_data = Serelization(coinbase_json_data)
+Coinbase_serilize_transaction_data = wtxid_Serelization(coinbase_json_data)
 
 with open("output.txt", "w") as file:
     file.write(Block_header + "\n")
@@ -125,13 +137,3 @@ with open("output.txt", "w") as file:
     for txid in valid_txids_RBO:
         file.write(txid + "\n")
 
-
-
-
-
-print("="*30)
-
-end_time = time.time()
-elapsed_time = end_time - start_time
-
-print("Elapsed time:", elapsed_time, "seconds")
